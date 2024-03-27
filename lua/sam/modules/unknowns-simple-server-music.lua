@@ -1,8 +1,7 @@
-local command = sam.command
 local Exists = file.Exists
 local find = string.find
 
-command.new( "setaudio" )
+sam.command.new( "setaudio" )
 	:Help( "Sets a URL/FilePath to play on server. Use empty value to stop current audio." )
 	:SetPermission( "setaudio", "admin" )
 	:SetCategory( "Fun" )
@@ -15,7 +14,6 @@ command.new( "setaudio" )
 		end
 	} )
 	:OnExecute( function( ply, value )
-		SetGlobal2Float( "simple-server-music-start-time", CurTime() )
-		SetGlobal2String( "simple-server-music-file-path", value )
+		ussm.SetFilePath( value )
 	end )
 :End()
