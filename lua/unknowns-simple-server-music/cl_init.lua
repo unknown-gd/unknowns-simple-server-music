@@ -1,3 +1,5 @@
+include( "shared.lua" )
+
 local GetGlobal2Var = GetGlobal2Var
 local Exists = file.Exists
 local find = string.find
@@ -27,7 +29,7 @@ local time, lenght, startTime = 0, 0, 0
 timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 	if metadata.IsDownloading then return end
 
-	filePath, oldChannel = GetGlobal2Var( "simple-server-music-file-path" ), metadata.m_ServerAudioChannel
+	filePath, oldChannel = GetGlobal2Var( "ussm-file-path" ), metadata.m_ServerAudioChannel
 	if not filePath or #filePath == 0 then
 		if oldChannel and IsValid( oldChannel ) then
 			print( "[USSM] Stoping audio:", metadata.m_ServerAudioFilePath or "none" )
@@ -41,9 +43,9 @@ timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 
 	if metadata.m_ServerAudioFilePath == filePath then
 		if oldChannel and IsValid( oldChannel ) then
-			SetVolume( oldChannel, snd_musicvolume:GetFloat() )
+			SetVolume( oldChannel, snd_musicvolume:GetFloat() * GetGlobal2Var( "ussm-volume", 1 ) )
 
-			startTime = GetGlobal2Var( "simple-server-music-start-time" )
+			startTime = GetGlobal2Var( "ussm-start-time" )
 			if startTime then
 				lenght = GetLength( oldChannel )
 				if lenght > 0 then
