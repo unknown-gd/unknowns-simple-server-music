@@ -23,8 +23,9 @@ local playingStated = {
 }
 
 local IGModAudioChannel = FindMetaTable( "IGModAudioChannel" )
-local IsValid, GetLength, GetTime, GetState, SetVolume = IGModAudioChannel.IsValid, IGModAudioChannel.GetLength, IGModAudioChannel.GetTime, IGModAudioChannel.GetState, IGModAudioChannel.SetVolume
-local time, lenght, startTime = 0, 0, 0
+local IsValid, GetLength, GetTime, GetState, GetVolume, SetVolume = IGModAudioChannel.IsValid, IGModAudioChannel.GetLength, IGModAudioChannel.GetTime, IGModAudioChannel.GetState, IGModAudioChannel.GetVolume, IGModAudioChannel.SetVolume
+local GetFloat = FindMetaTable( "ConVar" ).GetFloat
+local time, lenght, startTime, volume = 0, 0, 0, 0
 
 timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 	if metadata.IsDownloading then return end
@@ -43,7 +44,10 @@ timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 
 	if metadata.m_ServerAudioFilePath == filePath then
 		if oldChannel and IsValid( oldChannel ) then
-			SetVolume( oldChannel, snd_musicvolume:GetFloat() * GetGlobal2Var( "ussm-volume", 1 ) )
+			volume = GetFloat( snd_musicvolume ) * GetGlobal2Var( "ussm-volume", 1 )
+			if GetVolume( oldChannel ) ~= volume then
+				SetVolume( oldChannel, volume )
+			end
 
 			startTime = GetGlobal2Var( "ussm-start-time" )
 			if startTime then
