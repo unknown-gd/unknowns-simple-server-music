@@ -19,7 +19,7 @@ end
 --- Accept urls and local file paths.
 ---@param filePath string | nil
 function ussm.SetFilePath( filePath )
-	if not filePath or filePath == "none" or filePath == "nil" then
+	if not filePath or filePath == "" or filePath == "none" or filePath == "nil" then
 		SetGlobal2Var( "ussm-start-time", nil )
 		SetGlobal2Var( "ussm-file-path", nil )
 		return
