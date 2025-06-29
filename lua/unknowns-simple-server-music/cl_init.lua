@@ -10,11 +10,14 @@ local ussm_GetFilePath = ussm.GetFilePath
 local ussm_GetRepeat = ussm.GetRepeat
 local ussm_GetVolume = ussm.GetVolume
 local ussm_GetPause = ussm.GetPause
+local string_lower = string.lower
 local printf = ussm.printf
 local math_abs = math.abs
+local math_max = math.max
 local CurTime = CurTime
 
 local music_volume = GetConVar( "snd_musicvolume" ):GetFloat()
+local SyncFactor = ussm.SyncFactor
 
 cvars.AddChangeCallback( "snd_musicvolume", function( _, __, str )
 	music_volume = tonumber( str, 10 ) or 0.5
@@ -28,6 +31,11 @@ local audio_getLength, audio_getTime = audio_meta.GetLength, audio_meta.GetTime
 local audio_getPlaybackRate = audio_meta.GetPlaybackRate
 local audio_getVolume = audio_meta.GetVolume
 
+local cvar_meta = FindMetaTable( "ConVar" )
+---@cast cvar_meta ConVar
+
+local cvar_GetFloat = cvar_meta.GetFloat
+
 ---@type boolean
 local is_downloading = false
 
@@ -40,6 +48,12 @@ local channel
 ---@type string | nil
 local file_path
 
+---@type string | nil
+local content_type
+
+---@type boolean
+local is_file = true
+
 ---@param new_channel IGModAudioChannel
 ---@param error_id integer
 ---@param error_name string
@@ -47,12 +61,17 @@ local function bass_callback( new_channel, error_id, error_name )
 	is_downloading = false
 
 	if new_channel and audio_IsValid( new_channel ) then
-		printf( "[USSM/Info] The new audio channel '%s' [%s] has been created.", file_path or "unknown", new_channel:GetTagsVendor() or "MPEG" )
+		if is_file then
+			is_file = math_max( 0, audio_getLength( new_channel ) ) ~= 0
+		end
+
 		channel = new_channel
-	else
-		printf( "[USSM/Error] Audio channel creation failed with error code %d ( %s )", error_id, error_name )
-		is_failed = true
+		printf( "[USSM/Info] The new audio channel '%s' [%s][%s] has been created.", file_path or "unknown", content_type or new_channel:GetTagsVendor() or "MPEG", is_file and "file" or "stream" )
+		return
 	end
+
+	is_failed = true
+	printf( "[USSM/Error] Audio channel creation failed with error code %d ( %s )", error_id, error_name )
 end
 
 timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
@@ -96,12 +115,9 @@ timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 				channel:SetPlaybackRate( playback_rate )
 			end
 
-			local lenght = audio_getLength( channel )
-			if lenght > 0 then
-				local server_time = ( ( CurTime() - ussm_GetStartTime() ) * playback_rate )
-				if ussm_GetRepeat() then
-					server_time = server_time % lenght
-				elseif server_time > lenght then
+			if is_file then
+				local audio_length = math_max( 0, audio_getLength( channel ) )
+				if audio_length == 0 then
 					if state ~= 0 then
 						printf( "[USSM/Info] Audio channel '%s' has ended.", file_path or "unknown" )
 						channel:Stop()
@@ -110,8 +126,21 @@ timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 					return
 				end
 
-				if math_abs( audio_getTime( channel ) - server_time ) > 0.5 then
-					printf( "[USSM/Warn] Audio channel '%s' syncing... ( %0.2f / %0.2f seconds )", file_path or "unknown", server_time, lenght )
+				local server_time = ( ( CurTime() - ussm_GetStartTime() ) * playback_rate )
+
+				if ussm_GetRepeat() then
+					server_time = server_time % audio_length
+				elseif server_time > audio_length then
+					if state ~= 0 then
+						printf( "[USSM/Info] Audio channel '%s' has ended.", file_path or "unknown" )
+						channel:Stop()
+					end
+
+					return
+				end
+
+				if math_abs( audio_getTime( channel ) - server_time ) > cvar_GetFloat( SyncFactor ) then
+					printf( "[USSM/Warn] Audio channel '%s' syncing... ( %0.2f / %0.2f seconds )", file_path or "unknown", server_time, audio_length )
 					channel:SetTime( server_time )
 				end
 			end
@@ -143,11 +172,44 @@ timer.Create( "Unknown's Simple Server Music", 0.25, 0, function()
 		file_path = server_file_path
 		is_downloading = true
 
-		sound.PlayURL( server_file_path, "mono noblock noplay", bass_callback )
+		if not HTTP( {
+			method = "HEAD",
+			url = server_file_path,
+			success = function( status, _, headers )
+				if status < 200 or status > 299 then
+					printf( "[USSM/Error] Connection with '%s' failed, wrong status code '%d'.", server_file_path, status )
+					is_downloading = false
+					is_failed = true
+					return
+				end
+
+				is_file = false
+
+				for key, value in pairs( headers ) do
+					local lower_key = string_lower( key )
+					if lower_key == "content-type" then
+						content_type = value
+					elseif lower_key == "content-length" then
+						is_file = true
+					end
+				end
+
+				sound.PlayURL( server_file_path, "mono noblock noplay", bass_callback )
+			end,
+			failed = function( err_msg )
+				printf( "[USSM/Error] Connection with '%s' failed, error '%s'.", server_file_path, err_msg )
+				is_downloading = false
+				is_failed = true
+			end,
+			timeout = 10
+		} ) then
+			printf( "[USSM/Error] Connection with '%s' failed.", server_file_path )
+		end
 	elseif file.Exists( server_file_path, "GAME" ) then
 		printf( "[USSM/Info] Reading file '%s' from disk...", server_file_path )
 		file_path = server_file_path
 		is_downloading = true
+		is_file = true
 
 		sound.PlayFile( server_file_path, "mono noplay", bass_callback )
 	else

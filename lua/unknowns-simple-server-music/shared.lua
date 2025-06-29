@@ -5,6 +5,8 @@ local CurTime = CurTime
 ---@class ussm
 ussm = ussm or {}
 
+ussm.SyncFactor = CreateConVar( "ussm_sync_factor", "0.5", { FCVAR_REPLICATED, FCVAR_ARCHIVE }, "The sync factor used for syncing the music.", 0.1, 300 )
+
 --- Prints a formatted string.
 ---
 ---@param fmt string

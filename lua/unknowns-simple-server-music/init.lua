@@ -41,7 +41,7 @@ do
 			hook_Run( "USSM::Stop" )
 		else
 			SetGlobal2Var( "ussm-start-time", CurTime() )
-			SetGlobal2Var( "ussm-file-path", file_path )
+			SetGlobal2Var( "ussm-file-path", string.Trim( file_path ) )
 		end
 	end
 
@@ -226,7 +226,7 @@ concommand.Add( "ussm_set_playback_rate", function( pl, __, ___, str_rate )
 	end
 end, frac_autocomplete, "Sets the music playback rate. Default is 1" )
 
-concommand.Add( "ussm_change_position", function( pl, __, ___, str_time )
+concommand.Add( "ussm_skip", function( pl, __, ___, str_time )
 	---@cast pl Player | nil
 	if pl == nil or ( pl:IsSuperAdmin() or pl:IsListenServerHost() ) then
 		local seconds = tonumber( str_time, 10 ) or 0
